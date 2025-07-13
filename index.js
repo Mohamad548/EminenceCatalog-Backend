@@ -9,26 +9,34 @@ import path from 'path';
 dotenv.config();
 
 const app = express();
-
-// تنظیم CORS اینجا
-app.use(cors({
-  origin: '*' // یا اگر می‌خوای محدودش کنی به آدرس فرانت خودت: origin: 'https://your-frontend-domain.com'
-}));
 const PORT = process.env.PORT || 3001;
+
+// تنظیم CORS یک بار کافی است
+app.use(cors({
+  origin: '*', // در حالت production بهتره دامنه فرانت رو جایگزین کنی
+}));
+
+// فقط برای تست سرور
 app.get('/', (req, res) => {
-  res.send('Backend API for Eminence Catalog is running.');
+  res.send('✅ Backend API for Eminence Catalog is running.');
 });
 
-app.use(cors());
-
-// این خط باید قبل از روت‌ها باشه
+// استاتیک برای تصاویر
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+// Middleware برای JSON
 app.use(express.json());
+
+// تعریف روت‌های اصلی
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/products', productsRouter);
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-});
+// اجرای سرور فقط در محیط لوکال (برای Vercel لازم نیست)
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
