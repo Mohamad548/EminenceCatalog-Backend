@@ -9,7 +9,15 @@ import path from 'path';
 dotenv.config();
 
 const app = express();
+
+// تنظیم CORS اینجا
+app.use(cors({
+  origin: '*' // یا اگر می‌خوای محدودش کنی به آدرس فرانت خودت: origin: 'https://your-frontend-domain.com'
+}));
 const PORT = process.env.PORT || 3001;
+app.get('/', (req, res) => {
+  res.send('Backend API for Eminence Catalog is running.');
+});
 
 app.use(cors());
 
