@@ -1,14 +1,14 @@
 {
   "name": "eminencecatalog-backend",
   "version": "1.0.0",
-  "description": "Eminence Catalog Backend",
+  "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "Mohamad Mahmodi",
+  "author": "",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
@@ -18,4 +18,3 @@
     "pg": "^8.16.3"
   }
 }
-
