@@ -1,4 +1,3 @@
-// routes/products.js
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -6,10 +5,10 @@ import { query } from '../db.js';
 
 const router = express.Router();
 
-// 📁 تنظیم ذخیره فایل تصویر
+// تنظیم ذخیره فایل تصویر
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // مسیر ذخیره عکس
+    cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -20,7 +19,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// 🟢 GET همه محصولات
+/* ----------------------------------------------------
+ * GET: دریافت همه محصولات به همراه category_name
+ * ---------------------------------------------------- */
 router.get('/', async (req, res) => {
   try {
     const result = await query(`
@@ -36,12 +37,17 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 🟢 GET یک محصول خاص با id
+/* ----------------------------------------------------
+ * GET: دریافت یک محصول با id به همراه category_name
+ * ---------------------------------------------------- */
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await query(`
-      SELECT * FROM products WHERE id = $1
+      SELECT p.*, c.name AS category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.id = $1
     `, [id]);
 
     if (result.rows.length === 0) {
@@ -55,10 +61,23 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 🟡 POST ایجاد محصول جدید
+/* ----------------------------------------------------
+ * POST: ایجاد محصول جدید با آپلود عکس
+ * ---------------------------------------------------- */
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, code, categoryId, price1, price2, priceCustomer, description } = req.body;
+    const {
+      name,
+      code,
+      categoryId,
+      priceCustomer,
+      description,
+      length,
+      width,
+      height,
+      weight,
+    } = req.body;
+
     const image = req.file ? req.file.filename : null;
 
     if (!name || !code || !categoryId) {
@@ -66,10 +85,23 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 
     const result = await query(`
-      INSERT INTO products (name, code, category_id, price1, price2, price_customer, description, image)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *`,
-      [name, code, categoryId, price1 || 0, price2 || 0, priceCustomer || 0, description || '', image]
+      INSERT INTO products 
+      (name, code, category_id, price_customer, description, image, length, width, height, weight)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *
+    `,
+      [
+        name,
+        code,
+        categoryId,
+        priceCustomer || 0,
+        description || '',
+        image,
+        length || 0,
+        width || 0,
+        height || 0,
+        weight || 0,
+      ]
     );
 
     res.status(201).json(result.rows[0]);
@@ -79,11 +111,24 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-// 🟠 PATCH ویرایش محصول
+/* ----------------------------------------------------
+ * PATCH: ویرایش محصول با آپلود عکس
+ * ---------------------------------------------------- */
 router.patch('/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, code, categoryId, price1, price2, priceCustomer, description } = req.body;
+    const {
+      name,
+      code,
+      categoryId,
+      priceCustomer,
+      description,
+      length,
+      width,
+      height,
+      weight,
+    } = req.body;
+
     const image = req.file ? req.file.filename : null;
 
     const productResult = await query('SELECT * FROM products WHERE id = $1', [id]);
@@ -94,9 +139,24 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
     const currentImage = image || productResult.rows[0].image;
 
     const result = await query(`
-      UPDATE products SET name=$1, code=$2, category_id=$3, price1=$4, price2=$5, price_customer=$6, description=$7, image=$8
-      WHERE id=$9 RETURNING *`,
-      [name, code, categoryId, price1 || 0, price2 || 0, priceCustomer || 0, description || '', currentImage, id]
+      UPDATE products SET 
+        name=$1, code=$2, category_id=$3, price_customer=$4, description=$5, image=$6,
+        length=$7, width=$8, height=$9, weight=$10
+      WHERE id=$11 RETURNING *
+    `,
+      [
+        name,
+        code,
+        categoryId,
+        priceCustomer || 0,
+        description || '',
+        currentImage,
+        length || 0,
+        width || 0,
+        height || 0,
+        weight || 0,
+        id,
+      ]
     );
 
     res.json(result.rows[0]);
@@ -106,7 +166,9 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
   }
 });
 
-// 🔴 DELETE حذف محصول
+/* ----------------------------------------------------
+ * DELETE: حذف محصول با id
+ * ---------------------------------------------------- */
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
