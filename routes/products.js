@@ -2,18 +2,17 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { query } from '../db.js';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from '../cloudinaryConfig.js';
 
 const router = express.Router();
 
 // تنظیم ذخیره فایل تصویر
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, filename);
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'products', // نام پوشه در Cloudinary
+    allowed_formats: ['jpg', 'png', 'jpeg'],
   },
 });
 
@@ -78,7 +77,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       weight,
     } = req.body;
 
-    const image = req.file ? req.file.filename : null;
+    const image = req.file ? req.file.path : null; // Cloudinary URL
 
     if (!name || !code || !categoryId) {
       return res.status(400).json({ error: 'فیلدهای ضروری ارسال نشده‌اند' });
@@ -107,7 +106,12 @@ router.post('/', upload.single('image'), async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Failed to add product:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({
+      error: error.message || 'Unknown error',
+      stack: error.stack || null,
+      details: error,
+      stringified: JSON.stringify(error, Object.getOwnPropertyNames(error))
+    });
   }
 });
 
@@ -129,7 +133,7 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
       weight,
     } = req.body;
 
-    const image = req.file ? req.file.filename : null;
+    const image = req.file ? req.file.path : null; // Cloudinary URL
 
     const productResult = await query('SELECT * FROM products WHERE id = $1', [id]);
     if (productResult.rows.length === 0) {
