@@ -1,17 +1,16 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
 import { query } from '../db.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../cloudinaryConfig.js';
 
 const router = express.Router();
 
-// تنظیم ذخیره فایل تصویر
+// تنظیم ذخیره فایل تصویر در Cloudinary
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'products', // نام پوشه در Cloudinary
+    folder: 'products', // پوشه در Cloudinary
     allowed_formats: ['jpg', 'png', 'jpeg'],
   },
 });
@@ -61,7 +60,7 @@ router.get('/:id', async (req, res) => {
 });
 
 /* ----------------------------------------------------
- * POST: ایجاد محصول جدید با آپلود عکس
+ * POST: ایجاد محصول جدید با آپلود عکس (مقدار image آرایه است)
  * ---------------------------------------------------- */
 router.post('/', upload.single('image'), async (req, res) => {
   try {
@@ -77,7 +76,8 @@ router.post('/', upload.single('image'), async (req, res) => {
       weight,
     } = req.body;
 
-    const image = req.file ? req.file.path : null; // Cloudinary URL
+    // اگر تصویر آپلود شده باشد، آرایه شامل یک URL بساز، در غیر این صورت آرایه خالی
+    const imageArray = req.file ? [req.file.path] : [];
 
     if (!name || !code || !categoryId) {
       return res.status(400).json({ error: 'فیلدهای ضروری ارسال نشده‌اند' });
@@ -95,7 +95,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         categoryId,
         priceCustomer || 0,
         description || '',
-        image,
+        imageArray,
         length || 0,
         width || 0,
         height || 0,
@@ -116,7 +116,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 /* ----------------------------------------------------
- * PATCH: ویرایش محصول با آپلود عکس
+ * PATCH: ویرایش محصول با آپلود عکس (مقدار image آرایه است)
  * ---------------------------------------------------- */
 router.patch('/:id', upload.single('image'), async (req, res) => {
   try {
@@ -133,14 +133,14 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
       weight,
     } = req.body;
 
-    const image = req.file ? req.file.path : null; // Cloudinary URL
-
+    // دریافت محصول فعلی برای گرفتن آرایه تصاویر فعلی
     const productResult = await query('SELECT * FROM products WHERE id = $1', [id]);
     if (productResult.rows.length === 0) {
       return res.status(404).json({ error: 'محصول یافت نشد' });
     }
 
-    const currentImage = image || productResult.rows[0].image;
+    // اگر تصویر جدید آپلود شد آرایه جدید بساز، در غیر این صورت آرایه فعلی را نگه دار
+    const currentImages = req.file ? [req.file.path] : productResult.rows[0].image;
 
     const result = await query(`
       UPDATE products SET 
@@ -154,7 +154,7 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
         categoryId,
         priceCustomer || 0,
         description || '',
-        currentImage,
+        currentImages,
         length || 0,
         width || 0,
         height || 0,
