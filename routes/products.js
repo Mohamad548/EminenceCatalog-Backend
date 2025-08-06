@@ -60,9 +60,9 @@ router.get('/:id', async (req, res) => {
 });
 
 /* ----------------------------------------------------
- * POST: ایجاد محصول جدید با آپلود عکس (مقدار image آرایه است)
+ * POST: ایجاد محصول جدید با آپلود چند عکس (image آرایه است)
  * ---------------------------------------------------- */
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', upload.array('images', 10), async (req, res) => {
   try {
     const {
       name,
@@ -76,8 +76,8 @@ router.post('/', upload.single('image'), async (req, res) => {
       weight,
     } = req.body;
 
-    // اگر تصویر آپلود شده باشد، آرایه شامل یک URL بساز، در غیر این صورت آرایه خالی
-    const imageArray = req.file ? [req.file.path] : [];
+    // آرایه URL تصاویر آپلود شده، اگر عکسی نبود آرایه خالی
+    const imageArray = req.files ? req.files.map(file => file.path) : [];
 
     if (!name || !code || !categoryId) {
       return res.status(400).json({ error: 'فیلدهای ضروری ارسال نشده‌اند' });
@@ -95,7 +95,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         categoryId,
         priceCustomer || 0,
         description || '',
-        imageArray,
+        JSON.stringify(imageArray),   // <-- اینجا باید stringify شود
         length || 0,
         width || 0,
         height || 0,
@@ -116,9 +116,9 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 /* ----------------------------------------------------
- * PATCH: ویرایش محصول با آپلود عکس (مقدار image آرایه است)
+ * PATCH: ویرایش محصول با آپلود چند عکس (image آرایه است)
  * ---------------------------------------------------- */
-router.patch('/:id', upload.single('image'), async (req, res) => {
+router.patch('/:id', upload.array('images', 10), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -133,14 +133,16 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
       weight,
     } = req.body;
 
-    // دریافت محصول فعلی برای گرفتن آرایه تصاویر فعلی
+    // دریافت محصول فعلی
     const productResult = await query('SELECT * FROM products WHERE id = $1', [id]);
     if (productResult.rows.length === 0) {
       return res.status(404).json({ error: 'محصول یافت نشد' });
     }
 
     // اگر تصویر جدید آپلود شد آرایه جدید بساز، در غیر این صورت آرایه فعلی را نگه دار
-    const currentImages = req.file ? [req.file.path] : productResult.rows[0].image;
+    const currentImages = req.files && req.files.length > 0
+      ? req.files.map(file => file.path)
+      : productResult.rows[0].image;
 
     const result = await query(`
       UPDATE products SET 
@@ -154,7 +156,7 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
         categoryId,
         priceCustomer || 0,
         description || '',
-        currentImages,
+        JSON.stringify(currentImages),  // <-- اینجا هم stringify لازم است
         length || 0,
         width || 0,
         height || 0,
@@ -169,7 +171,6 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 /* ----------------------------------------------------
  * DELETE: حذف محصول با id
  * ---------------------------------------------------- */
