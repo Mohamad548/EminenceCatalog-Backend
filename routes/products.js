@@ -131,18 +131,18 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
       width,
       height,
       weight,
+      existingImages // از بدن درخواست
     } = req.body;
 
-    // دریافت محصول فعلی
     const productResult = await query('SELECT * FROM products WHERE id = $1', [id]);
     if (productResult.rows.length === 0) {
       return res.status(404).json({ error: 'محصول یافت نشد' });
     }
 
-    // اگر تصویر جدید آپلود شد آرایه جدید بساز، در غیر این صورت آرایه فعلی را نگه دار
-    const currentImages = req.files && req.files.length > 0
-      ? req.files.map(file => file.path)
-      : productResult.rows[0].image;
+    const parsedExistingImages = existingImages ? JSON.parse(existingImages) : [];
+    const newUploadedImages = req.files ? req.files.map(file => file.path) : [];
+
+    const currentImages = [...parsedExistingImages, ...newUploadedImages];
 
     const result = await query(`
       UPDATE products SET 
@@ -150,20 +150,19 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
         length=$7, width=$8, height=$9, weight=$10
       WHERE id=$11 RETURNING *
     `,
-      [
-        name,
-        code,
-        categoryId,
-        priceCustomer || 0,
-        description || '',
-        JSON.stringify(currentImages),  // <-- اینجا هم stringify لازم است
-        length || 0,
-        width || 0,
-        height || 0,
-        weight || 0,
-        id,
-      ]
-    );
+    [
+      name,
+      code,
+      categoryId,
+      priceCustomer || 0,
+      description || '',
+      JSON.stringify(currentImages),
+      length || 0,
+      width || 0,
+      height || 0,
+      weight || 0,
+      id,
+    ]);
 
     res.json(result.rows[0]);
   } catch (error) {
