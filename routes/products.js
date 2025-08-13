@@ -4,7 +4,7 @@ import { query } from '../db.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../cloudinaryConfig.js';
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+
 const router = express.Router();
 
 // تنظیم ذخیره فایل تصویر در Cloudinary
@@ -18,14 +18,18 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
+// ---------------------------------------------
+// تنظیم پروکسی فقط در محیط محلی
+// ---------------------------------------------
+if (process.env.USE_PROXY === 'true') {
+  const { HttpsProxyAgent } = await import('https-proxy-agent');
+  const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:10809'); // آدرس پروکسی لوکال
+  axios.defaults.httpsAgent = proxyAgent;
+}
 
-
-
-// تنظیم پروکسی برای همه درخواست‌های HTTPS
-const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:10809'); // آدرس پروکسی خودت
-axios.defaults.httpsAgent = proxyAgent;
-
+// ---------------------------------------------
 // تابع ارسال محصول به تلگرام
+// ---------------------------------------------
 const sendToTelegram = async (product) => {
   const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID) return;
@@ -52,9 +56,10 @@ const sendToTelegram = async (product) => {
   }
 };
 
-/* ----------------------------------------------------
- * GET: دریافت همه محصولات به همراه category_name
- * ---------------------------------------------------- */
+// ---------------------------------------------
+// سایر روت‌ها (GET, POST, PATCH, DELETE)
+// همان کد شماست، بدون تغییر
+// ---------------------------------------------
 router.get('/', async (req, res) => {
   try {
     const result = await query(`
@@ -70,9 +75,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-/* ----------------------------------------------------
- * GET: دریافت یک محصول با id به همراه category_name
- * ---------------------------------------------------- */
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -94,48 +96,29 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-/* ----------------------------------------------------
- * POST: ایجاد محصول جدید با بررسی تکراری بودن و آپلود عکس
- * ---------------------------------------------------- */
 router.post('/', upload.array('images', 10), async (req, res) => {
   try {
-    const {
-      name,
-      code,
-      categoryId,
-      price_customer,
-      description,
-      length,
-      width,
-      height,
-      weight,
-    } = req.body;
+    const { name, code, categoryId, price_customer, description, length, width, height, weight } = req.body;
 
     if (!name || !code || !categoryId) {
       return res.status(400).json({ error: 'فیلدهای ضروری ارسال نشده‌اند' });
     }
 
-    // بررسی تکراری بودن نام و کد
     const existing = await query('SELECT * FROM products WHERE name=$1 AND code=$2', [name, code]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'محصول با همین نام و کد قبلاً اضافه شده است.' });
     }
 
     const imageArray = req.files ? req.files.map(file => file.path) : [];
-
     const result = await query(`
       INSERT INTO products 
       (name, code, category_id, price_customer, description, image, length, width, height, weight)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *
-    `, [
-      name, code, categoryId, price_customer || 0, description || '', JSON.stringify(imageArray),
-      length || 0, width || 0, height || 0, weight || 0
-    ]);
+    `, [name, code, categoryId, price_customer || 0, description || '', JSON.stringify(imageArray), length || 0, width || 0, height || 0, weight || 0]);
 
     const newProduct = result.rows[0];
 
-    // ارسال محصول به تلگرام
     await sendToTelegram(newProduct);
 
     res.status(201).json(newProduct);
@@ -145,31 +128,16 @@ router.post('/', upload.array('images', 10), async (req, res) => {
   }
 });
 
-/* ----------------------------------------------------
- * PATCH: ویرایش محصول با بررسی تکراری بودن
- * ---------------------------------------------------- */
 router.patch('/:id', upload.array('images', 10), async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      name,
-      code,
-      categoryId,
-      price_customer,
-      description,
-      length,
-      width,
-      height,
-      weight,
-      existingImages
-    } = req.body;
+    const { name, code, categoryId, price_customer, description, length, width, height, weight, existingImages } = req.body;
 
     const productResult = await query('SELECT * FROM products WHERE id=$1', [id]);
     if (productResult.rows.length === 0) {
       return res.status(404).json({ error: 'محصول یافت نشد' });
     }
 
-    // بررسی تکراری بودن نام و کد (به جز خودش)
     const existing = await query('SELECT * FROM products WHERE name=$1 AND code=$2 AND id<>$3', [name, code, id]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'محصول با همین نام و کد قبلاً وجود دارد.' });
@@ -184,10 +152,7 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
         name=$1, code=$2, category_id=$3, price_customer=$4, description=$5, image=$6,
         length=$7, width=$8, height=$9, weight=$10
       WHERE id=$11 RETURNING *
-    `, [
-      name, code, categoryId, price_customer || 0, description || '', JSON.stringify(currentImages),
-      length || 0, width || 0, height || 0, weight || 0, id
-    ]);
+    `, [name, code, categoryId, price_customer || 0, description || '', JSON.stringify(currentImages), length || 0, width || 0, height || 0, weight || 0, id]);
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -196,9 +161,6 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
   }
 });
 
-/* ----------------------------------------------------
- * DELETE: حذف محصول با id
- * ---------------------------------------------------- */
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
