@@ -12,6 +12,43 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage });
 
+// ----------------------------------
+// GET همه محصولات
+router.get('/', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT p.*, c.name AS category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ORDER BY p.id
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET محصول با id
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(`
+      SELECT p.*, c.name AS category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.id=$1
+    `, [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Product not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
 // POST: اضافه کردن محصول
 router.post('/', upload.array('images', 10), async (req, res) => {
   try {
