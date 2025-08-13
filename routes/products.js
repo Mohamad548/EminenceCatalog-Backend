@@ -18,6 +18,9 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
+// تابع escape امن برای MarkdownV2
+const escapeMarkdownV2 = (text) => text?.replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, '\\$1') || '';
+
 // ---------------------------------------------
 // توابع تلگرام
 // ---------------------------------------------
@@ -25,56 +28,72 @@ const sendToTelegram = async (product) => {
   const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID) return null;
 
+  const shortDescription = product.description || 'بدون توضیح';
+
   const caption = `
-⚡ *${product.name}*
-🔹 *کد*: \`${product.code}\`
+⚡ *${escapeMarkdownV2(product.name)} ${escapeMarkdownV2(product.code || '')}*
 💰 *قیمت*: ${product.price_customer?.toLocaleString() || 0} تومان
 📏 *ابعاد*: ${product.length}×${product.width}×${product.height} سانتی‌متر
 ⚖️ *وزن*: ${product.weight || 0} کیلوگرم
-📂 *دسته‌بندی*: ${product.category_name || ''}
-📝 ${product.description || ''}
-🔗 [مشاهده محصول](${PRODUCT_PAGE_BASE}${product.id})
-  `;
+📝 ${escapeMarkdownV2(shortDescription)}
+
+🏢 نمایندگی رسمی Hinorms در ایران
+🌐 Kasraeminence.com
+`;
+
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: "💬 واتساپ", url: "https://wa.me/+989122434557" },
+        { text: "🟣 اینستاگرام", url: "https://www.instagram.com/Hinorms.ir" }
+      ],
+      [
+        { text: "🤖 سوالات متداول", url: "https://t.me/HinormsFAQ_Bot" },
+        { text: "🆘 پشتیبانی", url: "https://t.me/HinormsSupport_Bot" }
+      ]
+    ]
+  };
 
   try {
     const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
       chat_id: CHAT_ID,
       photo: product.image?.[0] || 'https://via.placeholder.com/300x300.png?text=No+Image',
       caption,
-      parse_mode: 'Markdown',
+      parse_mode: 'MarkdownV2',
+      reply_markup: keyboard
     });
 
     return response.data.result.message_id;
   } catch (err) {
-    console.error('Failed to send product to Telegram:', err.message);
+    console.error('❌ ارسال محصول به تلگرام ناموفق بود:', err.response?.data || err.message);
     return null;
   }
 };
 
 const editTelegramMessage = async (messageId, product) => {
-  const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
+  const { TELEGRAM_TOKEN, CHAT_ID } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID || !messageId) return;
 
   const caption = `
-⚡ *${product.name}*
-🔹 *کد*: \`${product.code}\`
+⚡ *${escapeMarkdownV2(product.name)} ${escapeMarkdownV2(product.code || '')}*
 💰 *قیمت*: ${product.price_customer?.toLocaleString() || 0} تومان
 📏 *ابعاد*: ${product.length}×${product.width}×${product.height} سانتی‌متر
 ⚖️ *وزن*: ${product.weight || 0} کیلوگرم
-📂 *دسته‌بندی*: ${product.category_name || ''}
-📝 ${product.description || ''}
-🔗 [مشاهده محصول](${PRODUCT_PAGE_BASE}${product.id})
-  `;
+📝 ${escapeMarkdownV2(product.description || 'بدون توضیح')}
+
+🏢 نمایندگی رسمی Hinorms در ایران
+🌐 Kasraeminence.com
+`;
 
   try {
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageCaption`, {
       chat_id: CHAT_ID,
       message_id: messageId,
       caption,
-      parse_mode: 'Markdown',
+      parse_mode: 'MarkdownV2'
     });
   } catch (err) {
-    console.error('Failed to edit Telegram message:', err.message);
+    console.error('❌ ویرایش پیام تلگرام ناموفق بود:', err.response?.data || err.message);
   }
 };
 
@@ -88,7 +107,7 @@ const deleteTelegramMessage = async (messageId) => {
       message_id: messageId,
     });
   } catch (err) {
-    console.error('Failed to delete Telegram message:', err.message);
+    console.error('❌ حذف پیام تلگرام ناموفق بود:', err.response?.data || err.message);
   }
 };
 
@@ -121,7 +140,6 @@ router.get('/:id', async (req, res) => {
     `, [id]);
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
-
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Failed to get product by ID:', error);
@@ -129,9 +147,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ---------------------------------------------
 // POST: اضافه کردن محصول و ارسال به تلگرام
-// ---------------------------------------------
 router.post('/', upload.array('images', 10), async (req, res) => {
   try {
     const { name, code, categoryId, price_customer, description, length, width, height, weight } = req.body;
@@ -154,7 +170,6 @@ router.post('/', upload.array('images', 10), async (req, res) => {
 
     const newProduct = result.rows[0];
 
-    // ارسال به تلگرام و ذخیره message_id
     const telegramMessageId = await sendToTelegram(newProduct);
     if (telegramMessageId) {
       await query('UPDATE products SET telegram_message_id=$1 WHERE id=$2', [telegramMessageId, newProduct.id]);
@@ -168,9 +183,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
   }
 });
 
-// ---------------------------------------------
 // PATCH: ویرایش محصول و بروزرسانی تلگرام
-// ---------------------------------------------
 router.patch('/:id', upload.array('images', 10), async (req, res) => {
   try {
     const { id } = req.params;
@@ -201,7 +214,6 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
 
     const updatedProduct = result.rows[0];
 
-    // ویرایش پیام تلگرام
     if (updatedProduct.telegram_message_id) {
       await editTelegramMessage(updatedProduct.telegram_message_id, updatedProduct);
     }
@@ -213,9 +225,7 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
   }
 });
 
-// ---------------------------------------------
 // DELETE: حذف محصول و پیام تلگرام
-// ---------------------------------------------
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
