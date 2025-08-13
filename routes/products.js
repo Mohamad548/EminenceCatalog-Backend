@@ -19,15 +19,6 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // ---------------------------------------------
-// تنظیم پروکسی فقط در محیط محلی
-// ---------------------------------------------
-if (process.env.USE_PROXY === 'true') {
-  const { HttpsProxyAgent } = await import('https-proxy-agent');
-  const proxyAgent = new HttpsProxyAgent('http://127.0.0.1:10809');
-  axios.defaults.httpsAgent = proxyAgent;
-}
-
-// ---------------------------------------------
 // توابع تلگرام
 // ---------------------------------------------
 const sendToTelegram = async (product) => {
@@ -53,7 +44,7 @@ const sendToTelegram = async (product) => {
       parse_mode: 'Markdown',
     });
 
-    return response.data.result.message_id; // ← ذخیره message_id
+    return response.data.result.message_id;
   } catch (err) {
     console.error('Failed to send product to Telegram:', err.message);
     return null;
@@ -186,10 +177,7 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
     const idNumber = parseInt(id, 10);
     if (isNaN(idNumber)) return res.status(400).json({ error: 'Invalid product ID' });
 
-    const {
-      name, code, categoryId, price_customer, description,
-      length, width, height, weight, existingImages
-    } = req.body;
+    const { name, code, categoryId, price_customer, description, length, width, height, weight, existingImages } = req.body;
 
     const productResult = await query('SELECT * FROM products WHERE id=$1', [idNumber]);
     if (productResult.rows.length === 0) return res.status(404).json({ error: 'محصول یافت نشد' });
@@ -239,7 +227,6 @@ router.delete('/:id', async (req, res) => {
 
     const deletedProduct = result.rows[0];
 
-    // حذف پیام تلگرام
     if (deletedProduct.telegram_message_id) {
       await deleteTelegramMessage(deletedProduct.telegram_message_id);
     }
