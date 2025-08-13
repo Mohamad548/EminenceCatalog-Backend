@@ -68,7 +68,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
       name,
       code,
       categoryId,
-      priceCustomer,
+      price_customer, // ✅ هماهنگ با فرانت و دیتابیس
       description,
       length,
       width,
@@ -93,9 +93,9 @@ router.post('/', upload.array('images', 10), async (req, res) => {
         name,
         code,
         categoryId,
-        priceCustomer || 0,
+        price_customer || 0, // ✅ حالا مقدار واقعی از فرانت میاد
         description || '',
-        JSON.stringify(imageArray),   // <-- اینجا باید stringify شود
+        JSON.stringify(imageArray),
         length || 0,
         width || 0,
         height || 0,
@@ -125,13 +125,13 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
       name,
       code,
       categoryId,
-      priceCustomer,
+      price_customer, // ✅ snake_case
       description,
       length,
       width,
       height,
       weight,
-      existingImages // از بدن درخواست
+      existingImages
     } = req.body;
 
     const productResult = await query('SELECT * FROM products WHERE id = $1', [id]);
@@ -141,7 +141,6 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
 
     const parsedExistingImages = existingImages ? JSON.parse(existingImages) : [];
     const newUploadedImages = req.files ? req.files.map(file => file.path) : [];
-
     const currentImages = [...parsedExistingImages, ...newUploadedImages];
 
     const result = await query(`
@@ -154,7 +153,7 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
       name,
       code,
       categoryId,
-      priceCustomer || 0,
+      price_customer || 0, // ✅ حالا مقدار درست میاد
       description || '',
       JSON.stringify(currentImages),
       length || 0,
@@ -170,6 +169,7 @@ router.patch('/:id', upload.array('images', 10), async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 /* ----------------------------------------------------
  * DELETE: حذف محصول با id
  * ---------------------------------------------------- */
