@@ -22,61 +22,48 @@ const upload = multer({ storage });
 // توابع تلگرام
 // ---------------------------------------------
 const sendToTelegram = async (product) => {
-const shortDescription = product.description || "بدون توضیح";
+  const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
+  if (!TELEGRAM_TOKEN || !CHAT_ID) return null;
+
   const caption = `
-⚡ *${product.name} ${product.code}*
+⚡ *${product.name}*
+🔹 *کد*: \`${product.code}\`
 💰 *قیمت*: ${product.price_customer?.toLocaleString() || 0} تومان
 📏 *ابعاد*: ${product.length}×${product.width}×${product.height} سانتی‌متر
 ⚖️ *وزن*: ${product.weight || 0} کیلوگرم
-📝 ${shortDescription}
-
-🏢 نمایندگی رسمی Hinorms در ایران
-🌐 سایت: Kasraeminence.com
+📂 *دسته‌بندی*: ${product.category_name || ''}
+📝 ${product.description || ''}
+🔗 [مشاهده محصول](${PRODUCT_PAGE_BASE}${product.id})
   `;
 
-const keyboard = {
-  inline_keyboard: [
-    [
-      { text: "💬 واتساپ", url: "https://wa.me/+989122434557" },
-      { text: "🟣 اینستاگرام", url: "https://www.instagram.com/Hinorms.ir" }
-    ],
-    [
-      { text: "🤖 سوالات متداول", url: "https://t.me/HinormsFAQ_Bot" },
-      { text: "🆘 پشتیبانی", url: "https://t.me/HinormsSupport_Bot" }
-    ]
-  ]
-};
-
-
-  const res = await axios.post(
-    `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`,
-    {
+  try {
+    const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
       chat_id: CHAT_ID,
-      photo: product.image?.[0] || "https://www.kasraeminence.com/wp-content/uploads/2024/12/2.png",
+      photo: product.image?.[0] || 'https://via.placeholder.com/300x300.png?text=No+Image',
       caption,
-      parse_mode: "Markdown",
-      reply_markup: keyboard
-    }
-  );
+      parse_mode: 'Markdown',
+    });
 
-  return res.data.result.message_id;
+    return response.data.result.message_id;
+  } catch (err) {
+    console.error('Failed to send product to Telegram:', err.message);
+    return null;
+  }
 };
-
 
 const editTelegramMessage = async (messageId, product) => {
   const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID || !messageId) return;
 
-const shortDescription = product.description || "بدون توضیح";
   const caption = `
-⚡ *${product.name} ${product.code}*
+⚡ *${product.name}*
+🔹 *کد*: \`${product.code}\`
 💰 *قیمت*: ${product.price_customer?.toLocaleString() || 0} تومان
 📏 *ابعاد*: ${product.length}×${product.width}×${product.height} سانتی‌متر
 ⚖️ *وزن*: ${product.weight || 0} کیلوگرم
-📝 ${shortDescription}
-
-🏢 نمایندگی رسمی Hinorms در ایران
-🌐 سایت: Kasraeminence.com
+📂 *دسته‌بندی*: ${product.category_name || ''}
+📝 ${product.description || ''}
+🔗 [مشاهده محصول](${PRODUCT_PAGE_BASE}${product.id})
   `;
 
   try {
