@@ -67,15 +67,16 @@ const editTelegramMessage = async (messageId, product) => {
   const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID || !messageId) return;
 
+const shortDescription = product.description || "بدون توضیح";
   const caption = `
-⚡ *${product.name}*
-🔹 *کد*: \`${product.code}\`
+⚡ *${product.name} ${product.code}*
 💰 *قیمت*: ${product.price_customer?.toLocaleString() || 0} تومان
 📏 *ابعاد*: ${product.length}×${product.width}×${product.height} سانتی‌متر
 ⚖️ *وزن*: ${product.weight || 0} کیلوگرم
-📂 *دسته‌بندی*: ${product.category_name || ''}
-📝 ${product.description || ''}
-🔗 [مشاهده محصول](${PRODUCT_PAGE_BASE}${product.id})
+📝 ${shortDescription}
+
+🏢 نمایندگی رسمی Hinorms در ایران
+🌐 سایت: Kasraeminence.com
   `;
 
   try {
