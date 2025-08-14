@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getProductKeyboard } from './keyboard.js';
 import { getProductCaption } from './caption.js';
-require("dotenv").config();
+import 'dotenv/config';
 export const sendToTelegram = async (product) => {
   const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID) return null;
