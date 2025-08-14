@@ -24,7 +24,7 @@ const upload = multer({ storage });
 const sendToTelegram = async (product) => {
   const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID) return null;
-
+const shortDescription = product.description || "بدون توضیح";
   const caption = `
 ⚡ *${product.name} ${product.code}*
 💰 *قیمت*: ${product.price_customer?.toLocaleString() || 0} تومان
@@ -67,7 +67,7 @@ const keyboard = {
 const editTelegramMessage = async (messageId, product) => {
   const { TELEGRAM_TOKEN, CHAT_ID, PRODUCT_PAGE_BASE } = process.env;
   if (!TELEGRAM_TOKEN || !CHAT_ID || !messageId) return;
-
+const shortDescription = product.description || "بدون توضیح";
   const caption = `
 ⚡ *${product.name} ${product.code}*
 💰 *قیمت*: ${product.price_customer?.toLocaleString() || 0} تومان
